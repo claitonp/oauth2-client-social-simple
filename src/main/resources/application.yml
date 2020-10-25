@@ -1,15 +1,34 @@
+server:
+  port: 9090
+  
 spring:
   security:
     oauth2:
       client:
         registration:
           github:
-            client-id: 97196d4eab31b16c7198
-            client-secret: b4a0dedaa6c4abb4da3d0367abac2a748aa175fc
+            client-id: xxx
+            client-secret: yyy
           google:
-            client-id: 816346642456-vv1t9o93enc9jriquf4ndt14qpkivatl.apps.googleusercontent.com
-            client-secret: jcwds3cQZJHi-p78D7RHKKrT
+            client-id: xxx.apps.googleusercontent.com
+            client-secret: yyy    
+          algafood:
+            client-id: foodanalytics
+            client-secret: 123
+            client-name: "AlgaFood"
+            scope: READ,WRITE
+            provider: algafood-provider
+            redirect-uri: "{baseUrl}/{action}/oauth2/code/{registrationId}"
+            client-authentication-method: basic
+            authorization-grant-type: authorization_code      
+        provider:
+          algafood-provider:
+            authorization-uri: http://algafood.local:8080/oauth/authorize
+            token-uri: http://localhost.local:8080/oauth/token # não funciona algafood.local: [invalid_token_response] An error occurred while attempting to retrieve the OAuth 2.0 Access Token Response: 503 Service Unavailable: [
+            user-info-uri: http://localhost:8080/v1/usuarios/autenticado  # não funciona algafood.local: [invalid_user_info_response] An error occurred while attempting to retrieve the UserInfo Resource: 503 Service Unavailable
+            user-name-attribute: email
 
 logging:
   level:
      org.springframework.security: DEBUG
+     org.springframework.web.client: DEBUG

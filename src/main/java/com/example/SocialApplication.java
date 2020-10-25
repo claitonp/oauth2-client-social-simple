@@ -32,12 +32,17 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistration.ProviderDetails;
+import org.springframework.security.oauth2.client.registration.ClientRegistration.ProviderDetails.UserInfoEndpoint;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.reactive.function.client.ServletOAuth2AuthorizedClientExchangeFilterFunction;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -65,10 +70,11 @@ public class SocialApplication extends WebSecurityConfigurerAdapter {
     @GetMapping("/user")
     public Map<String, String> user(@AuthenticationPrincipal OAuth2User principal) {
         String name = principal.getAttribute("name");
+        String nome = principal.getAttribute("nome");
         String email = principal.getAttribute("email");
         Map<String, String> result = new HashMap<String, String>();
         
-        result.put("name", name);
+        result.put("name", name != null ? name: nome );
         result.put("email", email);
         log.info("user: {}", principal);
         return result;
@@ -101,8 +107,14 @@ public class SocialApplication extends WebSecurityConfigurerAdapter {
     
     @Bean
     public WebClient rest(ClientRegistrationRepository clients, OAuth2AuthorizedClientRepository authz) {
+        infoClient(clients,"algafood");
+        infoClient(clients,"github");
+        infoClient(clients,"google");
+
+        log.info("authz: {}", authz);
         ServletOAuth2AuthorizedClientExchangeFilterFunction oauth2 = new ServletOAuth2AuthorizedClientExchangeFilterFunction(clients, authz);
-        
+
+        log.info("oauth2: {}", oauth2);
         HttpClient httpClient = HttpClient.create()
                                           .tcpConfiguration(tcpClient -> tcpClient.proxy(proxy -> proxy.type(ProxyProvider.Proxy.HTTP)
                                                                                                        .host("proxycor")
@@ -119,30 +131,45 @@ public class SocialApplication extends WebSecurityConfigurerAdapter {
         return result;
     }
 
-    @Bean
-    public OAuth2UserService<OAuth2UserRequest, OAuth2User> oauth2UserService(WebClient rest) {
-        DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
-        return request -> {
-            OAuth2User user = delegate.loadUser(request);
-            if (!"github".equals(request.getClientRegistration().getRegistrationId())) {
-                return user;
-            }
+    private ClientRegistration infoClient(ClientRegistrationRepository clients, String id) {
+        ClientRegistration regAlgafood = clients.findByRegistrationId(id);
+        log.info("### clients: {}", regAlgafood);
+        AuthorizationGrantType authorizationGrantType = regAlgafood.getAuthorizationGrantType();
+        log.info("### AuthorizationGrantType: {}", authorizationGrantType != null ? authorizationGrantType.getValue(): "");
+        ClientAuthenticationMethod clientAuthenticationMethod = regAlgafood.getClientAuthenticationMethod();
+        log.info("### ClientAuthenticationMethod: {}", clientAuthenticationMethod.getValue());
+        ProviderDetails provider = regAlgafood.getProviderDetails();
+        log.info("### getProviderDetails uri: {} jwk: {} tokenUri: {}", provider.getAuthorizationUri(), provider.getJwkSetUri(), provider.getTokenUri());
+        UserInfoEndpoint userInfoEndpoint = provider.getUserInfoEndpoint();
+        log.info("### userInfoEndpoint method: {} uri: {} attribute: {}", userInfoEndpoint.getAuthenticationMethod(), userInfoEndpoint.getUri(), userInfoEndpoint.getUserNameAttributeName());
 
-            OAuth2AuthorizedClient client = new OAuth2AuthorizedClient(request.getClientRegistration(), user.getName(), request.getAccessToken());
-            String url = user.getAttribute("organizations_url");
-            List<Map<String, Object>> orgs = rest
-                    .get().uri(url)
-                    .attributes(oauth2AuthorizedClient(client))
-                    .retrieve()
-                    .bodyToMono(List.class)
-                    .block(); //timeout
-
-            if (orgs.stream().anyMatch(org -> "spring-projects".equals(org.get("login")))) {
-                return user;
-            }
-
-            throw new OAuth2AuthenticationException(new OAuth2Error("invalid_token", "Not in Spring Team", ""));
-        };
+        return regAlgafood;
     }
+
+//    @Bean
+//    public OAuth2UserService<OAuth2UserRequest, OAuth2User> oauth2UserService(WebClient rest) {
+//        DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
+//        return request -> {
+//            OAuth2User user = delegate.loadUser(request);
+//            if (!"github".equals(request.getClientRegistration().getRegistrationId())) {
+//                return user;
+//            }
+//
+//            OAuth2AuthorizedClient client = new OAuth2AuthorizedClient(request.getClientRegistration(), user.getName(), request.getAccessToken());
+//            String url = user.getAttribute("organizations_url");
+//            List<Map<String, Object>> orgs = rest
+//                    .get().uri(url)
+//                    .attributes(oauth2AuthorizedClient(client))
+//                    .retrieve()
+//                    .bodyToMono(List.class)
+//                    .block(); //timeout
+//
+//            if (orgs.stream().anyMatch(org -> "spring-projects".equals(org.get("login")))) {
+//                return user;
+//            }
+//
+//            throw new OAuth2AuthenticationException(new OAuth2Error("invalid_token", "Not in Spring Team", ""));
+//        };
+//    }
 
 }

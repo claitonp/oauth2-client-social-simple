@@ -6,3 +6,14 @@ https://spring.io/guides/tutorials/spring-boot-oauth2/
 
 https://github.com/spring-guides/tut-spring-boot-oauth2
 
+
+Para registrar as aplicações no OAuth: 
+
+Github: https://github.com/settings/developers
+
+
+Google: https://console.developers.google.com/apis/credentials
+
+
+exception:[authorization_request_not_found]
+https://stackoverflow.com/questions/50908023/using-spring-security-oauth-using-a-custom-oauth-provider-i-get-authorization
